@@ -1,10 +1,190 @@
-  <html>
-       <head>
-          <title>Ihsan is a fat fuck</title>
-       </head>
-       <body>
-         <center>
-           ihsan is a fat fuck
-         </center>
-       </body>
-   </html>
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Paste Here!</title>
+  <script src="http://cdnjs.cloudflare.com/ajax/libs/underscore.js/1.3.3/underscore-min.js"> </script>
+  <!--<script src="http://cdnjs.cloudflare.com/ajax/libs/backbone.js/0.9.2/backbone-min.js"> </script>-->
+  <style>
+    .js-visible { display: none; }
+    img.resize-preview { width: 240px; }
+    ul { margin: 0; padding: 0; }
+    li { display: inline-block; }
+  </style>
+</head>
+<body>
+  <div class="js-hidden">
+    <p>Please enable javascript</p>
+  </div>
+  <div id="content" class="js-visible">
+    <p>Pase image here</p>
+  </div>
+<script id="main">
+  ;(function(_, root, console){
+    "use strict";
+
+    var doc = root.document;
+
+    (function(klass, elems){
+      elems = doc.getElementsByClassName(klass)
+      for (var ii = elems.length; -1 < --ii;)
+        elems[ii].classList.remove(klass);
+    }('js-visible'));
+
+    (function(klass, elems){
+      elems = doc.getElementsByClassName(klass)
+      for (var ii = elems.length; -1 < --ii;)
+        elems[ii].parentNode.removeChild(elems[ii]);
+    }('js-hidden'));
+
+    var settings = {
+      replace: true
+    };
+
+    root.onerror = (root.onerror || function(event) { alert('ERROR! '+ event); });
+
+    if ('file:' === root.location.protocol) {
+      return alert('Not supported on file:// URI');
+    }
+
+    var catcher = false;
+    if (!root.Clipboard) {
+      catcher = doc.createElement('div');
+      catcher.setAttribute('contenteditable', '');
+      catcher.style.width = '0px';
+      catcher.style.height = '0px';
+      catcher.style.overflow = 'hidden';
+      doc.body.appendChild(catcher);
+      doc.addEventListener('click', function(event) {
+        if ('input' !== event.target.tagName.toLowerCase())
+        {
+          catcher.focus();
+        }
+      });
+    }
+
+    var fileList = doc.createElement('div'),
+        list = doc.createElement('ul');
+    fileList.innerHTML = '<p>No files selected!</p>';
+    doc.body.appendChild(fileList);
+
+    var button = doc.createElement('button');
+    doc.body.appendChild(button);
+
+    var field = doc.documentElement;
+
+    // Keep focus on the field
+    //field.onblur = function() {
+    //  // Change focus 0ms (15ms~) later to avoid bugs
+    //  setTimeout(function(){ field.focus(); }, 0);
+    //};
+
+    var URL = root.URL || root.webkitURL || {};
+    var createImage = function(blob, callback) {
+      var img = new Image();
+      img.onload = function() {
+        callback.call(this, this.src);
+        // Cleanup
+        URL.revokeObjectURL(this.src);
+      };
+      img.src = URL.createObjectURL(blob.getAsFile());
+    };
+
+    var canvasObjects = root.canvasObjects_ = [];
+
+    var error = function(message) {
+      fileList.innerHTML = '<p>' + message + '</p>';
+      list.innerHTML = '';
+      canvasObjects = root.canvasObjects_ = [];
+    };
+
+    var insertImage = function() {
+      var canvas = doc.createElement('canvas'),
+          ctx = canvas.getContext('2d');
+      // Copy to canvas
+      canvas.width = this.width;
+      canvas.height = this.height;
+      ctx.drawImage(this, 0, 0);
+      if (settings.replace) {
+        canvasObjects = root.canvasObjects_ = [];
+        list.innerHTML = '';
+      }
+      canvasObjects.push(canvas);
+      // Resize image
+      this.className += ' resize-preview';
+      // Append to list
+      var li = doc.createElement('li');
+      list.appendChild(li);
+      li.appendChild(this);
+    };
+
+    var handleClipboard = function(clipboard) {
+      // filter iterator
+      var hasFiles = function(type) {
+        return type === "Files";
+      };
+      var hasImage = function(item) {
+        return -1 !== String(item.type).indexOf('image/');
+      };
+      var foundImage = false;
+      if (_.any(clipboard.types, hasFiles)) {
+        _.chain(clipboard.items).filter(hasImage).each(function(item) {
+          // upload blob to server
+          createImage(item, insertImage);
+          fileList.innerHTML = '';
+          fileList.appendChild(list);
+          foundImage = true;
+        });
+      }
+      if (!foundImage) error('No image dectected!');
+      return true;
+    };
+
+    var copyImage = function(href, callback) {
+      var img = new Image();
+      img.onload = function() {
+        callback.call(this, this.src);
+      };
+      img.src = href;
+    };
+
+    var checkInput = function() {
+      var node = catcher.childNodes[0];
+      catcher.innerHTML = '';
+      if (node && 'img' === node.tagName.toLowerCase())
+      {
+        copyImage(node.src, insertImage);
+        fileList.innerHTML = '';
+        fileList.appendChild(list);
+      }
+      else error('No image dectected!');
+    };
+
+    var inputElement = function(event) {
+      if (!catcher) return false;
+      catcher.focus();
+      setTimeout(checkInput, 1);
+      console.log(event, 'fallback method');
+    };
+
+    var uploadImages = function(target) {
+      _.each(canvasObjects, function(canvas) {
+        console.log(canvas, 'canvas to upload');
+      });
+    };
+
+    // On pasting data check for image mimes
+    field.onpaste = function(event) {
+      // Try handle clipboard data
+      if (event.clipboardData && handleClipboard(event.clipboardData)) return;
+      // Not handled try a workround
+      inputElement(event);
+    };
+
+    button.onclick = function() {
+      uploadImages('/some/uploader.php');
+    };
+
+  }(_, window, console));
+</script>
+</body>
+</html>
